@@ -1,0 +1,152 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Dreambreaker Simulator</title>
+  </head>
+  <body>
+    <main class="container">
+      <h1>Dreambreaker Simulator</h1>
+      <p class="rules">
+        Rules: random initial serve; if serving side loses a rally, serve
+        switches. At 20+ points, a team can score only while serving
+        (non-serving rally wins are side-outs with no point). To win: 21+
+        points and ahead by 2+. Each game plays up to 4 rallies.
+      </p>
+      <section class="summary controls">
+        <h2>Probability of Winning a Point
+        <div class="probability-grid">
+          <label class="slider-control">
+            <span class="slider-title"
+              >Matchup 1
+              <button id="matchup-reset-1" class="reset-button" type="button">
+                50/50
+              </button></span
+            >
+            <input
+              id="matchup-slider-1"
+              type="range"
+              min="0"
+              max="100"
+              step="1"
+              value="50"
+            />
+            <span class="slider-hint"
+              >A <span id="matchup-value-1">50% / 50%</span> B</span
+            >
+            <span class="matchup-stats" id="matchup-stats-1"
+              ><span class="matchup-stats-line">Avg Score: -</span
+              ><span class="matchup-stats-line">Avg Matches: -</span></span
+            >
+          </label>
+          <label class="slider-control">
+            <span class="slider-title"
+              >Matchup 2
+              <button id="matchup-reset-2" class="reset-button" type="button">
+                50/50
+              </button></span
+            >
+            <input
+              id="matchup-slider-2"
+              type="range"
+              min="0"
+              max="100"
+              step="1"
+              value="50"
+            />
+            <span class="slider-hint"
+              >A <span id="matchup-value-2">50% / 50%</span> B</span
+            >
+            <span class="matchup-stats" id="matchup-stats-2"
+              ><span class="matchup-stats-line">Avg Score: -</span
+              ><span class="matchup-stats-line">Avg Matches: -</span></span
+            >
+          </label>
+          <label class="slider-control">
+            <span class="slider-title"
+              >Matchup 3
+              <button id="matchup-reset-3" class="reset-button" type="button">
+                50/50
+              </button></span
+            >
+            <input
+              id="matchup-slider-3"
+              type="range"
+              min="0"
+              max="100"
+              step="1"
+              value="50"
+            />
+            <span class="slider-hint"
+              >A <span id="matchup-value-3">50% / 50%</span> B</span
+            >
+            <span class="matchup-stats" id="matchup-stats-3"
+              ><span class="matchup-stats-line">Avg Score: -</span
+              ><span class="matchup-stats-line">Avg Matches: -</span></span
+            >
+          </label>
+          <label class="slider-control">
+            <span class="slider-title"
+              >Matchup 4
+              <button id="matchup-reset-4" class="reset-button" type="button">
+                50/50
+              </button></span
+            >
+            <input
+              id="matchup-slider-4"
+              type="range"
+              min="0"
+              max="100"
+              step="1"
+              value="50"
+            />
+            <span class="slider-hint"
+              >A <span id="matchup-value-4">50% / 50%</span> B</span
+            >
+            <span class="matchup-stats" id="matchup-stats-4"
+              ><span class="matchup-stats-line">Avg Score: -</span
+              ><span class="matchup-stats-line">Avg Matches: -</span></span
+            >
+          </label>
+        </div>
+        <div class="actions actions-aggregate">
+          <button id="estimate-wins" type="button">Recompute Averages</button>
+        </div>
+        <div class="summary summary-inner" id="win-results">
+          <h2>Win Chances</h2>
+          <p>Run estimation to compute each team's chance of winning.</p>
+        </div>
+        <p id="probability-error" class="error"></p>
+      </section>
+      <section class="summary single-match">
+        <div class="single-match-header">
+          <h2>Single Match</h2>
+          <button id="simulate" type="button">Simulate New Match</button>
+        </div>
+        <h2 id="single-match-winner">Winner: -</h2>
+        <p id="single-match-score">Final Score: Team A 0 - 0 Team B</p>
+        <p id="single-match-games">Games Played: 0</p>
+        <div class="single-match-stats-grid" id="single-match-stats-grid"></div>
+        <div id="single-match-chart"></div>
+      </section>
+      <section class="games">
+        <h2>Game Results</h2>
+        <table>
+          <thead>
+            <tr>
+              <th>Game</th>
+              <th>Players</th>
+              <th>Serve (Start)</th>
+              <th>Game Score</th>
+              <th>Match Score</th>
+              <th>Game Winner</th>
+            </tr>
+          </thead>
+          <tbody id="game-results-body"></tbody>
+        </table>
+      </section>
+    </main>
+    <script type="module" src="/src/main.ts"></script>
+  </body>
+</html>
