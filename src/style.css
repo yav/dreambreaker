@@ -326,11 +326,25 @@
   padding: 0.6rem;
 }
 
-.slider-title {
+.slider-control-dragging {
+  opacity: 0.65;
+}
+
+.matchup-drag-handle {
   display: flex;
   align-items: center;
   justify-content: space-between;
   gap: 0.5rem;
+  margin-bottom: 0.35rem;
+  cursor: grab;
+}
+
+.matchup-drag-handle:active {
+  cursor: grabbing;
+}
+
+.slider-title {
+  font-weight: 600;
 }
 
 .reset-button {

@@ -10,20 +10,20 @@
       <h1>Dreambreaker Simulator</h1>
       <p class="rules">
         Rules: random initial serve; if serving side loses a rally, serve
-        switches. At 20+ points, a team can score only while serving
-        (non-serving rally wins are side-outs with no point). To win: 21+
+        switches. At 20+ points, a team can score only while serving. To win: 21+
         points and ahead by 2+. Each game plays up to 4 rallies.
       </p>
+      <p class="rules">Sliders: chance to win a rally.  Drag matchups to rearrange.</p>
       <section class="summary controls">
         <h2>Probability of Winning a Point</h2>
         <div class="probability-grid">
           <label class="slider-control">
-            <span class="slider-title"
-              >Matchup 1
+            <div class="matchup-drag-handle" title="Drag to reorder matchup">
+              <span class="slider-title">Matchup 1</span>
               <button id="matchup-reset-1" class="reset-button" type="button">
                 50/50
-              </button></span
-            >
+              </button>
+            </div>
             <input
               id="matchup-slider-1"
               type="range"
@@ -41,12 +41,12 @@
             >
           </label>
           <label class="slider-control">
-            <span class="slider-title"
-              >Matchup 2
+            <div class="matchup-drag-handle" title="Drag to reorder matchup">
+              <span class="slider-title">Matchup 2</span>
               <button id="matchup-reset-2" class="reset-button" type="button">
                 50/50
-              </button></span
-            >
+              </button>
+            </div>
             <input
               id="matchup-slider-2"
               type="range"
@@ -64,12 +64,12 @@
             >
           </label>
           <label class="slider-control">
-            <span class="slider-title"
-              >Matchup 3
+            <div class="matchup-drag-handle" title="Drag to reorder matchup">
+              <span class="slider-title">Matchup 3</span>
               <button id="matchup-reset-3" class="reset-button" type="button">
                 50/50
-              </button></span
-            >
+              </button>
+            </div>
             <input
               id="matchup-slider-3"
               type="range"
@@ -87,12 +87,12 @@
             >
           </label>
           <label class="slider-control">
-            <span class="slider-title"
-              >Matchup 4
+            <div class="matchup-drag-handle" title="Drag to reorder matchup">
+              <span class="slider-title">Matchup 4</span>
               <button id="matchup-reset-4" class="reset-button" type="button">
                 50/50
-              </button></span
-            >
+              </button>
+            </div>
             <input
               id="matchup-slider-4"
               type="range"

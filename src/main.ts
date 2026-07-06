@@ -29,6 +29,37 @@ function formatSplitText(teamBPercent: number): string {
   return `${teamAPercent}% / ${teamBPercent}%`
 }
 
+function getOrderedMatchupControls(): HTMLElement[] {
+  return Array.from(
+    document.querySelectorAll<HTMLElement>('.probability-grid .slider-control'),
+  )
+}
+
+function getOrderedMatchupNumbers(): number[] {
+  const fallback = [1, 2, 3, 4]
+
+  const ordered = getOrderedMatchupControls().map((control, index) => {
+    const slider = control.querySelector<HTMLInputElement>('input[type="range"]')
+    if (!slider) {
+      return fallback[index]
+    }
+
+    const match = slider.id.match(/matchup-slider-(\d+)/)
+    if (!match) {
+      return fallback[index]
+    }
+
+    const matchupNumber = Number.parseInt(match[1], 10)
+    return Number.isInteger(matchupNumber) ? matchupNumber : fallback[index]
+  })
+
+  if (ordered.length !== 4) {
+    return fallback
+  }
+
+  return ordered
+}
+
 function setupSliderNumberDisplays(onProbabilityChanged: () => void): void {
   for (let matchup = 1; matchup <= 4; matchup += 1) {
     const slider = document.querySelector<HTMLInputElement>(`#matchup-slider-${matchup}`)
@@ -56,15 +87,94 @@ function setupSliderNumberDisplays(onProbabilityChanged: () => void): void {
   }
 }
 
-function getMatchupStatsFromUi(): string[] {
-  const matchupStats: string[] = []
-
-  for (let matchup = 1; matchup <= 4; matchup += 1) {
-    const stat = document.querySelector<HTMLElement>(`#matchup-stats-${matchup}`)
-    matchupStats.push(stat?.innerHTML || DEFAULT_MATCHUP_STAT_HTML)
+function setupMatchupReordering(onReordered: () => void): void {
+  const probabilityGrid = document.querySelector<HTMLElement>('.probability-grid')
+  if (!probabilityGrid) {
+    return
   }
 
-  return matchupStats
+  let draggedControl: HTMLElement | null = null
+  let draggedFromIndex = -1
+
+  for (const control of getOrderedMatchupControls()) {
+    const dragHandle = control.querySelector<HTMLElement>('.matchup-drag-handle')
+    if (!dragHandle) {
+      continue
+    }
+
+    dragHandle.draggable = true
+
+    dragHandle.addEventListener('dragstart', () => {
+      draggedControl = control
+      draggedFromIndex = getOrderedMatchupControls().indexOf(control)
+      control.classList.add('slider-control-dragging')
+    })
+
+    control.addEventListener('dragover', (event) => {
+      event.preventDefault()
+      if (!draggedControl || draggedControl === control) {
+        return
+      }
+
+      const bounds = control.getBoundingClientRect()
+      const sameRow =
+        Math.abs(event.clientY - (bounds.top + bounds.height / 2)) <
+        bounds.height / 2
+      const droppedInSecondHalf = sameRow
+        ? event.clientX > bounds.left + bounds.width / 2
+        : event.clientY > bounds.top + bounds.height / 2
+      if (droppedInSecondHalf) {
+        control.after(draggedControl)
+      } else {
+        control.before(draggedControl)
+      }
+    })
+
+    dragHandle.addEventListener('dragend', () => {
+      if (!draggedControl) {
+        return
+      }
+
+      draggedControl.classList.remove('slider-control-dragging')
+      const draggedToIndex = getOrderedMatchupControls().indexOf(draggedControl)
+      draggedControl = null
+
+      if (draggedFromIndex !== -1 && draggedFromIndex !== draggedToIndex) {
+        onReordered()
+      }
+
+      draggedFromIndex = -1
+    })
+  }
+
+  probabilityGrid.addEventListener('dragover', (event) => {
+    if (!draggedControl) {
+      return
+    }
+
+    event.preventDefault()
+  })
+
+  probabilityGrid.addEventListener('drop', (event) => {
+    if (!draggedControl) {
+      return
+    }
+
+    const droppedOnControl = (event.target as Element | null)?.closest(
+      '.slider-control',
+    )
+    if (!droppedOnControl) {
+      // Allow dropping into empty grid space to move a card to the end.
+      probabilityGrid.append(draggedControl)
+    }
+  })
+}
+
+function getMatchupStatsFromUi(): string[] {
+  return getOrderedMatchupControls().map((control) => {
+    const stat = control.querySelector<HTMLElement>('.matchup-stats')
+    return stat?.innerHTML || DEFAULT_MATCHUP_STAT_HTML
+  })
 }
 
 function formatWinChanceEstimate(estimate: WinChanceEstimate): string {
@@ -107,7 +217,10 @@ function formatMatchupScoreStats(estimate: WinChanceEstimate): string[] {
   )
 }
 
-function formatSingleMatchStats(result: MatchResult): string {
+function formatSingleMatchStats(
+  result: MatchResult,
+  orderedMatchups: number[],
+): string {
   const pointsByAMatchup = [0, 0, 0, 0]
   const pointsByBMatchup = [0, 0, 0, 0]
   const gamesByMatchup = [0, 0, 0, 0]
@@ -123,7 +236,7 @@ function formatSingleMatchStats(result: MatchResult): string {
     .map(
       (_, index) => `
         <div class="single-match-stat-card">
-          <h3>Matchup ${index + 1}</h3>
+          <h3>Matchup ${orderedMatchups[index] ?? index + 1}</h3>
           <span class="matchup-stats-line">
             Score: ${pointsByAMatchup[index]} - ${pointsByBMatchup[index]}
           </span>
@@ -259,11 +372,9 @@ function formatSingleMatchChart(result: MatchResult): string {
 }
 
 function parseProbabilitiesFromUi(): MatchupProbabilities {
-  const parsed: number[] = []
-
-  for (let matchup = 1; matchup <= 4; matchup += 1) {
-    const input = document.querySelector<HTMLInputElement>(
-      `#matchup-slider-${matchup}`,
+  const parsed = getOrderedMatchupControls().map((control) => {
+    const input = control.querySelector<HTMLInputElement>(
+      'input[type="range"]',
     )
     if (!input) {
       throw new Error('Matchup sliders are not available')
@@ -276,33 +387,30 @@ function parseProbabilitiesFromUi(): MatchupProbabilities {
       sliderValue > 100
     ) {
       throw new Error(
-        `Matchup ${matchup} slider value must be an integer between 0 and 100`,
+        'Matchup slider value must be an integer between 0 and 100',
       )
     }
 
-    const probability = sliderValueToProbability(sliderValue)
-    parsed.push(probability)
-  }
+    return sliderValueToProbability(sliderValue)
+  })
 
   return parsed as MatchupProbabilities
 }
 
 function setSliderValues(probabilities: MatchupProbabilities): void {
-  for (let matchup = 1; matchup <= 4; matchup += 1) {
-    const slider = document.querySelector<HTMLInputElement>(
-      `#matchup-slider-${matchup}`,
-    )
-    const output = document.querySelector<HTMLElement>(`#matchup-value-${matchup}`)
+  getOrderedMatchupControls().forEach((control, index) => {
+    const slider = control.querySelector<HTMLInputElement>('input[type="range"]')
+    const output = control.querySelector<HTMLElement>('.slider-hint span')
     if (!slider) {
-      continue
+      return
     }
 
-    const teamBPercent = probabilityToSliderValue(probabilities[matchup - 1])
+    const teamBPercent = probabilityToSliderValue(probabilities[index])
     slider.value = String(teamBPercent)
     if (output) {
       output.textContent = formatSplitText(teamBPercent)
     }
-  }
+  })
 }
 
 function renderMatch(
@@ -317,6 +425,8 @@ function renderMatch(
     DEFAULT_MATCHUP_STAT_HTML,
   ],
 ): void {
+  const orderedMatchups = getOrderedMatchupNumbers()
+
   setSliderValues(probabilities)
 
   const winSection = document.querySelector<HTMLElement>('#win-results')
@@ -329,22 +439,21 @@ function renderMatch(
     error.textContent = errorMessage
   }
 
-  for (let matchup = 1; matchup <= 4; matchup += 1) {
-    const stat = document.querySelector<HTMLElement>(`#matchup-stats-${matchup}`)
+  getOrderedMatchupControls().forEach((control, index) => {
+    const stat = control.querySelector<HTMLElement>('.matchup-stats')
     if (!stat) {
-      continue
+      return
     }
 
-    stat.innerHTML =
-      matchupStatsContent[matchup - 1] ?? DEFAULT_MATCHUP_STAT_HTML
-  }
+    stat.innerHTML = matchupStatsContent[index] ?? DEFAULT_MATCHUP_STAT_HTML
+  })
 
   const rows = result.games
     .map(
       (game) => `
         <tr>
           <td>${game.gameNumber}</td>
-          <td>Matchup ${game.playerNumber}</td>
+          <td>Matchup ${orderedMatchups[game.playerNumber - 1] ?? game.playerNumber}</td>
           <td>${game.servingAtStart}</td>
           <td>${game.pointsByA}-${game.pointsByB}</td>
           <td>${game.totalAfterGameA}-${game.totalAfterGameB}</td>
@@ -380,7 +489,7 @@ function renderMatch(
     '#single-match-stats-grid',
   )
   if (singleMatchStats) {
-    singleMatchStats.innerHTML = formatSingleMatchStats(result)
+    singleMatchStats.innerHTML = formatSingleMatchStats(result, orderedMatchups)
   }
 
   const singleMatchChart = document.querySelector<HTMLElement>(
@@ -400,6 +509,34 @@ function renderMatch(
 
 let currentResult: MatchResult
 let currentProbabilities: MatchupProbabilities
+
+const runSingleMatchSimulationUpdate = () => {
+  try {
+    const nextProbabilities = parseProbabilitiesFromUi()
+    const nextResult = simulateMatch(nextProbabilities)
+    currentResult = nextResult
+    currentProbabilities = nextProbabilities
+    renderMatch(
+      currentResult,
+      currentProbabilities,
+      document.querySelector<HTMLElement>('#win-results')?.innerHTML ??
+        DEFAULT_WIN_SECTION_HTML,
+      '',
+      getMatchupStatsFromUi(),
+    )
+  } catch (error) {
+    const message =
+      error instanceof Error ? error.message : 'Invalid probabilities'
+    renderMatch(
+      currentResult,
+      currentProbabilities,
+      document.querySelector<HTMLElement>('#win-results')?.innerHTML ??
+        DEFAULT_WIN_SECTION_HTML,
+      message,
+      getMatchupStatsFromUi(),
+    )
+  }
+}
 
 const runWinEstimationUpdate = () => {
   try {
@@ -436,36 +573,15 @@ function initializeApp(): void {
   currentProbabilities = defaultProbabilities
   currentResult = simulateMatch(defaultProbabilities)
 
+  setupMatchupReordering(() => {
+    runSingleMatchSimulationUpdate()
+    runWinEstimationUpdate()
+  })
+
   setupSliderNumberDisplays(runWinEstimationUpdate)
 
   const simulateButton = document.querySelector<HTMLButtonElement>('#simulate')
-  simulateButton?.addEventListener('click', () => {
-    try {
-      const nextProbabilities = parseProbabilitiesFromUi()
-      const nextResult = simulateMatch(nextProbabilities)
-      currentResult = nextResult
-      currentProbabilities = nextProbabilities
-      renderMatch(
-        currentResult,
-        currentProbabilities,
-        document.querySelector<HTMLElement>('#win-results')?.innerHTML ??
-          DEFAULT_WIN_SECTION_HTML,
-        '',
-        getMatchupStatsFromUi(),
-      )
-    } catch (error) {
-      const message =
-        error instanceof Error ? error.message : 'Invalid probabilities'
-      renderMatch(
-        currentResult,
-        currentProbabilities,
-        document.querySelector<HTMLElement>('#win-results')?.innerHTML ??
-          DEFAULT_WIN_SECTION_HTML,
-        message,
-        getMatchupStatsFromUi(),
-      )
-    }
-  })
+  simulateButton?.addEventListener('click', runSingleMatchSimulationUpdate)
 
   const estimateWinsButton = document.querySelector<HTMLButtonElement>(
     '#estimate-wins',
