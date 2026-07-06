@@ -32,6 +32,16 @@ export interface MatchupScoreAverage {
   averageTotalPointsByAPerMatch: number
   averageTotalPointsByBPerMatch: number
   averageGamesPerMatch: number
+  totalPointsByADistribution: DistributionStats
+  totalPointsByBDistribution: DistributionStats
+  gamesPerMatchDistribution: DistributionStats
+}
+
+export interface DistributionStats {
+  standardDeviation: number
+  p10: number
+  p50: number
+  p90: number
 }
 
 export type MatchupProbabilities = [number, number, number, number]
@@ -76,6 +86,55 @@ function validateMatchupProbabilities(
       )
     }
   })
+}
+
+function computeQuantile(sortedValues: readonly number[], p: number): number {
+  if (sortedValues.length === 0) {
+    return 0
+  }
+
+  if (sortedValues.length === 1) {
+    return sortedValues[0]
+  }
+
+  const index = p * (sortedValues.length - 1)
+  const lowerIndex = Math.floor(index)
+  const upperIndex = Math.ceil(index)
+  const fraction = index - lowerIndex
+
+  if (lowerIndex === upperIndex) {
+    return sortedValues[lowerIndex]
+  }
+
+  const lower = sortedValues[lowerIndex]
+  const upper = sortedValues[upperIndex]
+  return lower + (upper - lower) * fraction
+}
+
+function summarizeDistribution(values: readonly number[]): DistributionStats {
+  if (values.length === 0) {
+    return {
+      standardDeviation: 0,
+      p10: 0,
+      p50: 0,
+      p90: 0,
+    }
+  }
+
+  const mean = values.reduce((sum, value) => sum + value, 0) / values.length
+  const variance =
+    values.reduce((sum, value) => {
+      const diff = value - mean
+      return sum + diff * diff
+    }, 0) / values.length
+  const sortedValues = [...values].sort((a, b) => a - b)
+
+  return {
+    standardDeviation: Math.sqrt(variance),
+    p10: computeQuantile(sortedValues, 0.1),
+    p50: computeQuantile(sortedValues, 0.5),
+    p90: computeQuantile(sortedValues, 0.9),
+  }
 }
 
 export function simulateMatch(
@@ -162,22 +221,43 @@ export function estimateWinChances(
   const totalPointsByAMatchup = new Array<number>(PLAYERS_PER_TEAM).fill(0)
   const totalPointsByBMatchup = new Array<number>(PLAYERS_PER_TEAM).fill(0)
   const totalGamesByMatchup = new Array<number>(PLAYERS_PER_TEAM).fill(0)
+  const pointsByASamplesByMatchup = Array.from(
+    { length: PLAYERS_PER_TEAM },
+    () => [] as number[],
+  )
+  const pointsByBSamplesByMatchup = Array.from(
+    { length: PLAYERS_PER_TEAM },
+    () => [] as number[],
+  )
+  const gamesSamplesByMatchup = Array.from(
+    { length: PLAYERS_PER_TEAM },
+    () => [] as number[],
+  )
 
   for (let i = 0; i < simulationCount; i += 1) {
     const result = simulateMatch(matchupProbabilities)
     const matchPointsByAMatchup = new Array<number>(PLAYERS_PER_TEAM).fill(0)
     const matchPointsByBMatchup = new Array<number>(PLAYERS_PER_TEAM).fill(0)
+    const matchGamesByMatchup = new Array<number>(PLAYERS_PER_TEAM).fill(0)
 
     for (const game of result.games) {
       const matchupIndex = game.playerNumber - 1
       matchPointsByAMatchup[matchupIndex] += game.pointsByA
       matchPointsByBMatchup[matchupIndex] += game.pointsByB
+      matchGamesByMatchup[matchupIndex] += 1
       totalGamesByMatchup[matchupIndex] += 1
     }
 
     for (let matchupIndex = 0; matchupIndex < PLAYERS_PER_TEAM; matchupIndex += 1) {
       totalPointsByAMatchup[matchupIndex] += matchPointsByAMatchup[matchupIndex]
       totalPointsByBMatchup[matchupIndex] += matchPointsByBMatchup[matchupIndex]
+      pointsByASamplesByMatchup[matchupIndex].push(
+        matchPointsByAMatchup[matchupIndex],
+      )
+      pointsByBSamplesByMatchup[matchupIndex].push(
+        matchPointsByBMatchup[matchupIndex],
+      )
+      gamesSamplesByMatchup[matchupIndex].push(matchGamesByMatchup[matchupIndex])
     }
 
     if (result.winner === 'Team A') {
@@ -192,6 +272,15 @@ export function estimateWinChances(
     averageTotalPointsByAPerMatch: totalPointsByAMatchup[index] / simulationCount,
     averageTotalPointsByBPerMatch: totalPointsByBMatchup[index] / simulationCount,
     averageGamesPerMatch: totalGamesByMatchup[index] / simulationCount,
+    totalPointsByADistribution: summarizeDistribution(
+      pointsByASamplesByMatchup[index],
+    ),
+    totalPointsByBDistribution: summarizeDistribution(
+      pointsByBSamplesByMatchup[index],
+    ),
+    gamesPerMatchDistribution: summarizeDistribution(
+      gamesSamplesByMatchup[index],
+    ),
   }))
 
   return {

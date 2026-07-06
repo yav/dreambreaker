@@ -208,13 +208,29 @@ function formatWinChanceEstimate(estimate: WinChanceEstimate): string {
 
 function formatMatchupScoreStats(estimate: WinChanceEstimate): string[] {
   return estimate.matchupScoreAverages.map(
-    (matchup) =>
-      '<span class="matchup-stats-line">' +
-      `Avg Score: ${matchup.averageTotalPointsByAPerMatch.toFixed(2)} - ` +
-      `${matchup.averageTotalPointsByBPerMatch.toFixed(2)}</span>` +
-      '<span class="matchup-stats-line">' +
-      `Avg Matches: ${matchup.averageGamesPerMatch.toFixed(2)}</span>`,
+    (matchup) => {
+      const scoreADistribution = matchup.totalPointsByADistribution
+      const scoreBDistribution = matchup.totalPointsByBDistribution
+      const gamesDistribution = matchup.gamesPerMatchDistribution
+
+      return (
+        '<span class="matchup-stats-line">Score:</span>' +
+        '<span class="matchup-stats-line">' +
+        `A ${formatTuple(scoreADistribution, matchup.averageTotalPointsByAPerMatch)}</span>` +
+        '<span class="matchup-stats-line">' +
+        `B ${formatTuple(scoreBDistribution, matchup.averageTotalPointsByBPerMatch)}</span>` +
+        '<span class="matchup-stats-line">' +
+        `Matches: ${formatTuple(gamesDistribution, matchup.averageGamesPerMatch)}</span>`
+      )
+    },
   )
+}
+
+function formatTuple(
+  distribution: { p10: number; p90: number },
+  mean: number,
+): string {
+  return `(${distribution.p10.toFixed(1)},${mean.toFixed(2)},${distribution.p90.toFixed(1)})`
 }
 
 function formatSingleMatchStats(
